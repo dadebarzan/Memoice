@@ -1,4 +1,4 @@
-# memoice
+# Memoice
 Android app to create and store voice memos!
 
 Created for an exam project in Embedded Systems @ UNIPD
