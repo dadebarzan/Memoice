@@ -48,11 +48,10 @@ class RecordViewModel(
         
         // Il timer vive qui dentro, al sicuro
         timerJob = viewModelScope.launch {
-            while (_recordDuration.value < 30) {
+            while (_isRecording.value) {
                 delay(1000)
                 _recordDuration.value += 1
             }
-            stopRecording() // Auto-stop a 30s
         }
     }
 

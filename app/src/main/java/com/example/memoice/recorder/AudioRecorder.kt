@@ -25,7 +25,6 @@ class AudioRecorder(
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC_ELD)
-            setMaxDuration(30000)
             path = outputFile.absolutePath
             setOutputFile(path)
 

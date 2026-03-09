@@ -171,20 +171,21 @@ fun HomeScreen(
                                 modifier = Modifier.weight(0.7f),
                                 textAlign = TextAlign.Center
                             )
-                            Text(
-                                text = record.nameWithoutExtension, // <-- Semplificato, niente dropLast!
+                           Text(
+                                text = record.file.nameWithoutExtension,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 24.sp,
+                                lineHeight = 28.sp,
                                 modifier = Modifier
                                     .weight(4f)
+                                    .padding(end = 16.dp)
                                     .clickable {
-                                        navController.navigate(Screen.Detail.passRef(record.nameWithoutExtension))
+                                        navController.navigate(Screen.Detail.passRef(record.file.nameWithoutExtension))
                                     }
                             )
-                            // La durata non è più calcolata dal nome. Per ora mettiamo un placeholder,
-                            // poi la leggeremo dal ViewModel in modo pulito.
+                            
                             Text(
-                                text = "Audio", 
+                                text = record.durationStr, 
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 18.sp,
                                 modifier = Modifier.weight(1f)
@@ -205,7 +206,7 @@ fun HomeScreen(
                                     DropdownMenuItem(
                                         text = { Text("Dettagli") },
                                         onClick = {
-                                            navController.navigate(route = Screen.Detail.passRef(record.nameWithoutExtension))
+                                            navController.navigate(route = Screen.Detail.passRef(record.file.nameWithoutExtension))
                                         }
                                     )
                                     DropdownMenuItem(

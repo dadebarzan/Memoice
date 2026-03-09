@@ -39,6 +39,9 @@ fun RecScreen(
 
     val isRecording by viewModel.isRecording.collectAsState()
     val length by viewModel.recordDuration.collectAsState()
+    val minutes = length / 60
+    val seconds = length % 60
+    val formattedTime = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     
     // Lo stato del bottone (se è stato premuto almeno una volta)
     var pressedRec by remember { mutableStateOf(false) }
@@ -95,7 +98,7 @@ fun RecScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Text(
-                    text = "${30 - length} s",
+                    text = formattedTime,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                     fontWeight = MaterialTheme.typography.bodyLarge.fontWeight

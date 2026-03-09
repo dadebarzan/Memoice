@@ -40,7 +40,10 @@ fun DetailScreen(
 
     // Dati recuperati dal ViewModel
     val durationSeconds = remember { viewModel.getDuration(file) }
-    val lengthS = if (durationSeconds < 10) "0$durationSeconds" else "$durationSeconds"
+    val minutes = durationSeconds / 60
+    val seconds = durationSeconds % 60
+    val formattedDuration = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+
     val (date, time) = remember { viewModel.getFileDateInfo(file) }
 
     // Stati osservati dal ViewModel
@@ -162,7 +165,7 @@ fun DetailScreen(
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                     )
                     
-                    Text(text = "00:$lengthS", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = formattedDuration, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Text(
