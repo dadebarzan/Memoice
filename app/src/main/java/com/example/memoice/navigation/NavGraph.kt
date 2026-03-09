@@ -3,10 +3,10 @@ package com.example.memoice.navigation
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -16,21 +16,23 @@ import com.example.memoice.DetailScreen
 import com.example.memoice.HomeScreen
 import com.example.memoice.RecScreen
 import com.example.memoice.recorder.AudioRecorder
-import com.example.memoice.service.AudioPlayer
-import com.example.memoice.service.AudioPlayerViewModel
-import java.io.File
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.memoice.repository.MemoRepository
+import com.example.memoice.viewmodel.DetailViewModel
+import com.example.memoice.viewmodel.DetailViewModelFactory
 import com.example.memoice.viewmodel.HomeViewModel
 import com.example.memoice.viewmodel.HomeViewModelFactory
+import com.example.memoice.viewmodel.RecordViewModel
+import com.example.memoice.viewmodel.RecordViewModelFactory
+import java.io.File
 
 @Composable
 fun SetupNavGraph(
     navController: NavHostController,
     recorder: AudioRecorder,
-    service: AudioPlayerViewModel,
     folder: File
 ) {
+    val application = LocalContext.current.applicationContext as android.app.Application
+
     NavHost(navController = navController,
             startDestination = Screen.Home.route
         ) {
@@ -49,13 +51,16 @@ fun SetupNavGraph(
         }
         composable(
             route = Screen.Detail.route,
-            arguments = listOf(navArgument(KEY) {
-                type = NavType.StringType
-            })
+            arguments = listOf(navArgument(KEY) { type = NavType.StringType })
         ) {
+            val repository = MemoRepository(folder)
+            val detailViewModel: DetailViewModel = viewModel(
+                factory = DetailViewModelFactory(application, repository)
+            )
+
             DetailScreen(
                 navController = navController,
-                serviceViewModel = service,
+                viewModel = detailViewModel,
                 folder = folder,
                 reference = it.arguments?.getString(KEY)!!
             )
@@ -67,10 +72,14 @@ fun SetupNavGraph(
                 defaultValue = ""
             })
         ) {
+            val repository = MemoRepository(folder)
+            val recordViewModel: RecordViewModel = viewModel(
+                factory = RecordViewModelFactory(recorder, repository)
+            )
+
             RecScreen(
                 navController = navController,
-                recorder = recorder,
-                folder = folder,
+                viewModel = recordViewModel,
                 reference = it.arguments?.getString(KEY)
             )
         }

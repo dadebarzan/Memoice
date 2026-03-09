@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class MemoRepository(private val folder: File) {
+class MemoRepository(val folder: File) {
 
     // Recupera la lista dei file audio in modo asincrono (fuori dal Main Thread)
     suspend fun getRecords(): List<File> = withContext(Dispatchers.IO) {

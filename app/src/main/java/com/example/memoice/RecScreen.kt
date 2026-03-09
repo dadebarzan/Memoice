@@ -2,36 +2,16 @@ package com.example.memoice
 
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Done
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,101 +26,44 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.memoice.navigation.LockScreenOrientation
 import com.example.memoice.navigation.Screen
-import com.example.memoice.recorder.AudioRecorder
-import com.example.memoice.ui.theme.AnimatedCircles
-import com.example.memoice.ui.theme.DrawCircleOnCanvas
-import com.example.memoice.ui.theme.MemoiceTheme
-import com.example.memoice.ui.theme.dark_DeleteContainer
-import com.example.memoice.ui.theme.dark_onDeleteContainer
-import com.example.memoice.ui.theme.light_DeleteContainer
-import com.example.memoice.ui.theme.light_onDeleteContainer
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.File
-import java.io.IOException
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import com.example.memoice.ui.theme.*
+import com.example.memoice.viewmodel.RecordViewModel
 
 @Composable
 fun RecScreen(
     navController: NavController,
-    recorder: AudioRecorder,
-    folder: File,
+    viewModel: RecordViewModel, // Usiamo il ViewModel!
     reference: String?
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
-    val scope = rememberCoroutineScope()
-    var created by remember { mutableStateOf(false) }
+    val isRecording by viewModel.isRecording.collectAsState()
+    val length by viewModel.recordDuration.collectAsState()
+    
+    // Lo stato del bottone (se è stato premuto almeno una volta)
     var pressedRec by remember { mutableStateOf(false) }
-    var recording by remember { mutableStateOf(false) }
-    var length by remember { mutableStateOf(0) }
-    var lengthToAppend by remember { mutableStateOf("00") }
-    var recTextIndicator by remember { mutableStateOf("Premi per\nregistrare") }
-    if(pressedRec && recording) { recTextIndicator = "Registrazione\nin corso..." }
-    if(pressedRec && !recording) { recTextIndicator = "Registrazione\ninterrotta!" }
 
-    val fileName = "R_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMddAAAAAAAA")).toString().dropLast(5) + ".mp3"
-
-    val file = File(folder, fileName)
-    if (!folder.exists()) {
-        val isFolderCreated = folder.mkdir()
-        if (!isFolderCreated) {
-            navController.navigate(route = Screen.Home.route) {
-                popUpTo(Screen.Home.route) {
-                    inclusive = true
-                }
-            }
-        }
-    }
-    try {
-        if(!created) {
-            file.createNewFile()
-            created = true
-            Log.d("DEBUG", "Creato file con nome: ${file.name}")
-        }
-    } catch (e: IOException) {
-        navController.navigate(route = Screen.Home.route) {
-            popUpTo(Screen.Home.route) {
-                inclusive = true
-            }
-        }
+    val recTextIndicator = when {
+        pressedRec && isRecording -> "Registrazione\nin corso..."
+        pressedRec && !isRecording -> "Registrazione\ninterrotta!"
+        else -> "Premi per\nregistrare"
     }
 
-    if(length == 30) {
-        recorder.stop()
-        recording = false
-        lengthToAppend = "30"
-    }
+    // Creiamo il riferimento al file solo una volta all'avvio della schermata
+    val outputFile = remember { viewModel.getOutputFile(reference) }
 
+    // Gestione del ciclo di vita (es. se l'utente mette l'app in background)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if(event == Lifecycle.Event.ON_PAUSE) {
-                if(pressedRec && recording) {
-                    recorder.stop()
-                    scope.cancel()
-                    if(length < 10) {
-                        lengthToAppend = "0$length"
-                    } else {
-                        lengthToAppend = "$length"
-                    }
-                    recording = false
-                }
-            } else if(event == Lifecycle.Event.ON_STOP) {
-                if(pressedRec) {
-                    file.delete()
-                }
-                navController.navigate(route = Screen.Home.route) {
-                    popUpTo(Screen.Home.route) {
-                        inclusive = true
-                    }
-                }
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                viewModel.onPause()
+            } else if (event == Lifecycle.Event.ON_STOP && pressedRec && isRecording) {
+                viewModel.cancelRecording()
+                navController.popBackStack(Screen.Home.route, false)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
@@ -172,7 +95,7 @@ fun RecScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Text(
-                    text = (30-length).toString() + " s",
+                    text = "${30 - length} s",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                     fontWeight = MaterialTheme.typography.bodyLarge.fontWeight
@@ -185,32 +108,18 @@ fun RecScreen(
                         .height(144.dp)
                         .width(144.dp)
                         .clickable(
-                            onClick = {
-                                if (!pressedRec) {
-                                    recorder.start(file)
-                                    pressedRec = true
-                                    scope.launch {
-                                        while (length < 30) {
-                                            delay(1000)
-                                            length++
-                                        }
-                                    }
-                                } else {
-                                    recorder.stop()
-                                    scope.cancel()
-                                    if (length < 10) {
-                                        lengthToAppend = "0$length"
-                                    } else {
-                                        lengthToAppend = "$length"
-                                    }
-                                }
-                                recording = !recording
-                            },
-                            indication = null,
-                            interactionSource = MutableInteractionSource()
-                        )
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (!isRecording && !pressedRec) {
+                                viewModel.startRecording(outputFile)
+                                pressedRec = true
+                            } else if (isRecording) {
+                                viewModel.stopRecording()
+                            }
+                        }
                 ) {
-                    if(recording) {
+                    if (isRecording) {
                         AnimatedCircles()
                     } else {
                         DrawCircleOnCanvas(
@@ -219,36 +128,26 @@ fun RecScreen(
                             radiusRatio = 12f
                         )
                     }
-
                 }
 
                 Spacer(modifier = Modifier.height(48.dp))
 
                 Row {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // Pulsante Salva
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
                             onClick = {
-                                if(reference != "" && reference != null) {
-                                    File(folder, "$reference.mp3").delete()
-                                    val newName = reference.dropLast(2)+lengthToAppend+"."+file.extension
-                                    file.renameTo(File(folder, newName))
-                                    navController.navigate(route = Screen.Detail.passRef(newName.dropLast(4)))
+                                if (reference != "" && reference != null) {
+                                    // Se stavamo sovrascrivendo, torniamo al dettaglio
+                                    navController.navigate(route = Screen.Detail.passRef(outputFile.nameWithoutExtension)) {
+                                        popUpTo(Screen.Home.route)
+                                    }
                                 } else {
-                                    val newName = fileName.dropLast(4)+lengthToAppend+"."+file.extension
-                                    val newFile = File(folder, newName)
-                                    if(!file.renameTo(newFile)) {
-                                        Log.d("WARNING", "Il file NON è stato rinominato")
-                                    }
-                                    navController.navigate(route = Screen.Home.route) {
-                                        popUpTo(Screen.Home.route) {
-                                            inclusive = true
-                                        }
-                                    }
+                                    // Altrimenti torniamo alla Home
+                                    navController.popBackStack(Screen.Home.route, false)
                                 }
                             },
-                            enabled = (pressedRec && !recording),
+                            enabled = (pressedRec && !isRecording),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -271,22 +170,17 @@ fun RecScreen(
 
                     Spacer(modifier = Modifier.width(48.dp))
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // Pulsante Elimina (Annulla)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
                             onClick = {
-                                file.delete()
-                                navController.navigate(route = Screen.Home.route) {
-                                    popUpTo(Screen.Home.route) {
-                                        inclusive = true
-                                    }
-                                }
+                                viewModel.cancelRecording()
+                                navController.popBackStack(Screen.Home.route, false)
                             },
-                            enabled = (pressedRec && !recording),
+                            enabled = (pressedRec && !isRecording),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = if(isSystemInDarkTheme()) dark_DeleteContainer else light_DeleteContainer,
-                                contentColor = if(isSystemInDarkTheme()) dark_onDeleteContainer else light_onDeleteContainer
+                                containerColor = if (isSystemInDarkTheme()) dark_DeleteContainer else light_DeleteContainer,
+                                contentColor = if (isSystemInDarkTheme()) dark_onDeleteContainer else light_onDeleteContainer
                             ),
                             modifier = Modifier.size(64.dp)
                         ) {
@@ -306,34 +200,5 @@ fun RecScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-fun RecScreenPreview() {
-    MemoiceTheme {
-        RecScreen(
-            navController = rememberNavController(),
-            recorder = AudioRecorder(LocalContext.current),
-            folder = File("recs"),
-            reference = ""
-        )
-    }
-}
-
-@Composable
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
-)
-fun RecScreenDarkPreview() {
-    MemoiceTheme {
-        RecScreen(
-            navController = rememberNavController(),
-            recorder = AudioRecorder(LocalContext.current),
-            folder = File("recs"),
-            reference = ""
-        )
     }
 }

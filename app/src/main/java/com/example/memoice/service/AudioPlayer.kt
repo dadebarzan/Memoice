@@ -7,51 +7,50 @@ import android.app.Service
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.net.Uri
-import android.os.Binder
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Log
-import androidx.core.net.toUri
 import com.example.memoice.R
+import kotlinx.coroutines.*
 
-class AudioPlayer: Service(), MediaPlayer.OnPreparedListener {
-
-    private val localBinder = mBinder()
+class AudioPlayer : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
 
     private var player: MediaPlayer? = null
-    private var isPlaying = false
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var progressJob: Job? = null
 
-    inner class mBinder : Binder() {
-        fun getBoundPlayer(): AudioPlayer {
-            return this@AudioPlayer
-        }
-    }
-
-    override fun onBind(intent: Intent?): IBinder {
-        return localBinder
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-
-        val name: CharSequence = "Memoice Player"
-        val importance = NotificationManager.IMPORTANCE_LOW
-        val channel = NotificationChannel("Memoice", name, importance)
-        val notificationManager = getSystemService(
-            NotificationManager::class.java
-        )
-        notificationManager.createNotificationChannel(channel)
+        val channel = NotificationChannel("Memoice", "Memoice Player", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    override fun onDestroy() {
-        stop()
-        super.onDestroy()
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            "PLAY" -> {
+                val filePath = intent.getStringExtra("FILE_PATH") ?: return START_NOT_STICKY
+                val title = intent.getStringExtra("TITLE") ?: "Memoice"
+                
+                // Se stiamo cercando di riprodurre lo stesso file già caricato ed è in pausa, riprendiamolo!
+                if (AudioStateManager.currentFile.value == title && player != null) {
+                    resume()
+                } else {
+                    play(filePath, title)
+                }
+            }
+            "PAUSE" -> pause()
+            "STOP" -> stop()
+        }
+        return START_NOT_STICKY
     }
 
-    fun play(uri: Uri, title: String) {
-        if (isPlaying) return
-        isPlaying = true
+    private fun play(filePath: String, title: String) {
+        if (AudioStateManager.isPlaying.value) stop()
+
+        AudioStateManager.setCurrentFile(title)
+        AudioStateManager.setPlaying(true)
+        AudioStateManager.setProgress(0f)
 
         player = MediaPlayer().apply {
             setAudioAttributes(
@@ -60,47 +59,75 @@ class AudioPlayer: Service(), MediaPlayer.OnPreparedListener {
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .build()
             )
-            setDataSource(applicationContext, uri)
+            setDataSource(filePath)
             setOnPreparedListener(this@AudioPlayer)
+            setOnCompletionListener(this@AudioPlayer)
             prepareAsync()
             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
         }
 
-        val notificationBuilder: Notification.Builder = Notification.Builder(applicationContext, "Memoice")
-        notificationBuilder.setContentTitle(title)
-        notificationBuilder.setSmallIcon(R.drawable.graphic_eq)
-        val notification = notificationBuilder.build()
-        val notificationID = 5786423
-        startForeground(notificationID, notification)
+        val notification = Notification.Builder(applicationContext, "Memoice")
+            .setContentTitle(title)
+            .setContentText("Riproduzione in corso...")
+            .setSmallIcon(R.drawable.graphic_eq)
+            .build()
+        
+        startForeground(5786423, notification)
     }
 
-    fun isPlaying(): Boolean {
-        return isPlaying
-    }
-
-    fun getCurrentPosition(): Float {
-        if(isPlaying || player != null) {
-            if(player!!.currentPosition == player!!.duration) {
-                player!!.stop()
-                return 1f
+    private fun pause() {
+        player?.let {
+            if (it.isPlaying) {
+                it.pause() // Mette in pausa il MediaPlayer senza distruggerlo
+                AudioStateManager.setPlaying(false)
+                // Il loop della progress bar si fermerà da solo perché isPlaying diventa false
             }
-            val total = player!!.duration.toFloat()
-            val played = player!!.currentPosition.toFloat()
-            return played/total
         }
-        return 0f
     }
 
-    fun stop() {
-        if (isPlaying) {
-            isPlaying = false
-            player?.release()
-            player = null
-            stopForeground(STOP_FOREGROUND_REMOVE)
+    private fun resume() {
+        player?.let {
+            it.start() // Riprende da dove era rimasto
+            AudioStateManager.setPlaying(true)
+            startProgressUpdates() // Facciamo ripartire la progress bar
         }
     }
 
     override fun onPrepared(mp: MediaPlayer?) {
         mp?.start()
+        startProgressUpdates()
+    }
+
+    override fun onCompletion(mp: MediaPlayer?) {
+        AudioStateManager.setProgress(1f)
+        stop()
+    }
+
+    private fun startProgressUpdates() {
+        progressJob?.cancel()
+        progressJob = serviceScope.launch {
+            while (player?.isPlaying == true) {
+                val currentPos = player?.currentPosition?.toFloat() ?: 0f
+                val totalDur = player?.duration?.toFloat() ?: 1f
+                AudioStateManager.setProgress(currentPos / totalDur)
+                delay(50)
+            }
+        }
+    }
+
+    private fun stop() {
+        AudioStateManager.setPlaying(false)
+        AudioStateManager.setCurrentFile(null)
+        progressJob?.cancel()
+        player?.release()
+        player = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        stop()
+        super.onDestroy()
     }
 }
