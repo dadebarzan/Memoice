@@ -19,12 +19,16 @@ import com.example.memoice.recorder.AudioRecorder
 import com.example.memoice.service.AudioPlayer
 import com.example.memoice.service.AudioPlayerViewModel
 import java.io.File
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.memoice.repository.MemoRepository
+import com.example.memoice.viewmodel.HomeViewModel
+import com.example.memoice.viewmodel.HomeViewModelFactory
 
 @Composable
 fun SetupNavGraph(
     navController: NavHostController,
     recorder: AudioRecorder,
-    service: AudioPlayerViewModel,//AudioPlayer?,
+    service: AudioPlayerViewModel,
     folder: File
 ) {
     NavHost(navController = navController,
@@ -33,9 +37,14 @@ fun SetupNavGraph(
         composable(
             route = Screen.Home.route
         ) {
+            val repository = MemoRepository(folder)
+            val homeViewModel: HomeViewModel = viewModel(
+                factory = HomeViewModelFactory(repository)
+            )
+
             HomeScreen(
                 navController = navController,
-                folder = folder
+                viewModel = homeViewModel
             )
         }
         composable(
