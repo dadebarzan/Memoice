@@ -31,12 +31,12 @@ fun DetailScreen(
     navController: NavController,
     viewModel: DetailViewModel,
     folder: File,
-    reference: String // Ora reference è IL NOME ESATTO del file (senza .mp3)
+    reference: String
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
     val scope = rememberCoroutineScope()
-    val file = File(folder, "$reference.mp3")
+    val file = File(folder, "$reference.m4a")
 
     // Dati recuperati dal ViewModel
     val durationSeconds = remember { viewModel.getDuration(file) }

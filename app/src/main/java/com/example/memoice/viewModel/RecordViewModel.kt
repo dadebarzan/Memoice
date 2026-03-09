@@ -32,10 +32,10 @@ class RecordViewModel(
     // Generiamo il nome del file in modo pulito. Niente più calcoli strani!
     fun getOutputFile(reference: String?): File {
         val fileName = if (!reference.isNullOrEmpty()) {
-            "$reference.mp3" // Se stiamo registrando di nuovo sopra un vecchio memo, teniamo il nome
+            "$reference.m4a" // Se stiamo registrando di nuovo sopra un vecchio memo, teniamo il nome
         } else {
             // Altrimenti generiamo un nome standard basato su data e ora
-            "Memo_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".mp3"
+            "Memo_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".m4a"
         }
         return File(repository.folder, fileName)
     }
