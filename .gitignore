@@ -1,0 +1,38 @@
+# Built outputs
+/build/
+app/build/
+*.apk
+*.aab
+*.aar
+
+# Gradle
+.gradle/
+gradle-wrapper.jar
+
+# Android Studio / IntelliJ IDEA
+.idea/workspace.xml
+.idea/caches/
+.idea/deploymentTargetSelector.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+*.iml
+*.ipr
+*.iws
+
+# Local SDK/NDK paths (machine-specific, may also contain API keys)
+local.properties
+
+# Kotlin metadata cache
+.kotlin/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Memory dumps & profiler captures
+*.hprof
+captures/
+
+# Keystore files (security: never commit signing keys)
+*.jks
+*.keystore
