@@ -41,6 +41,10 @@ class AudioPlayer : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnCom
             }
             "PAUSE" -> pause()
             "STOP" -> stop()
+            "SEEK" -> {
+                val progress = intent.getFloatExtra("PROGRESS", 0f)
+                seekTo(progress)
+            }
         }
         return START_NOT_STICKY
     }
@@ -82,6 +86,15 @@ class AudioPlayer : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnCom
                 AudioStateManager.setPlaying(false)
                 // Il loop della progress bar si fermerà da solo perché isPlaying diventa false
             }
+        }
+    }
+
+    private fun seekTo(progress: Float) {
+        player?.let {
+            // Calcoliamo a quale millisecondo corrisponde la percentuale
+            val position = (it.duration * progress).toInt()
+            it.seekTo(position)
+            AudioStateManager.setProgress(progress)
         }
     }
 

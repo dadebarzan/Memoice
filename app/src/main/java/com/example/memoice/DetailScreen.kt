@@ -49,6 +49,15 @@ fun DetailScreen(
     // Stati osservati dal ViewModel
     val isPlaying by viewModel.isPlaying.collectAsState()
     val progress by viewModel.progress.collectAsState()
+    var isDragging by remember { mutableStateOf(false) }
+    var sliderValue by remember { mutableStateOf(0f) }
+
+    // Sincronizza il pallino con l'audio reale SOLO SE l'utente non lo sta toccando
+    LaunchedEffect(progress) {
+        if (!isDragging) {
+            sliderValue = progress
+        }
+    }
 
     var rename by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf(reference) }
@@ -160,8 +169,16 @@ fun DetailScreen(
                         }
                     }
                     
-                    LinearProgressIndicator(
-                        progress = progress,
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { newValue ->
+                            isDragging = true
+                            sliderValue = newValue
+                        },
+                        onValueChangeFinished = {
+                            isDragging = false
+                            viewModel.seekTo(sliderValue)
+                        },
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                     )
                     

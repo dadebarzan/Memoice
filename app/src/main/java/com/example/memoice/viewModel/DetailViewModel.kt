@@ -43,6 +43,17 @@ class DetailViewModel(
         app.startService(intent)
     }
 
+    fun seekTo(progress: Float) {
+        val intent = Intent(app, AudioPlayer::class.java).apply {
+            action = "SEEK"
+            putExtra("PROGRESS", progress)
+        }
+        app.startService(intent)
+        
+        // Aggiorniamo sùbito l'interfaccia per evitare ritardi visivi
+        AudioStateManager.setProgress(progress)
+    }
+
     fun stopAudio() {
         val intent = Intent(app, AudioPlayer::class.java).apply {
             action = "STOP"
