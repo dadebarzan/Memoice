@@ -24,9 +24,9 @@ class MemoRepository(val folder: File) {
     }
 
     // Ottiene la durata reale dell'audio leggendo i metadati (metodo ortodosso)
-    fun getDurationSeconds(file: File): Int {
+    suspend fun getDurationSeconds(file: File): Int = withContext(Dispatchers.IO) {
         val retriever = MediaMetadataRetriever()
-        return try {
+        try {
             retriever.setDataSource(file.absolutePath)
             val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val timeInMillis = time?.toLong() ?: 0L

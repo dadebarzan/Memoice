@@ -6,9 +6,16 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.example.memoice.repository.MemoRepository
 import com.example.memoice.service.AudioPlayer
 import com.example.memoice.service.AudioStateManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
@@ -25,6 +32,12 @@ class DetailViewModel(
     val isPlaying = AudioStateManager.isPlaying
     val progress = AudioStateManager.progress
     val currentFile = AudioStateManager.currentFile
+
+    private val _durationSeconds = MutableStateFlow(0)
+    val durationSeconds: StateFlow<Int> = _durationSeconds.asStateFlow()
+
+    private val _fileDateInfo = MutableStateFlow(Pair("Caricamento...", "--:--"))
+    val fileDateInfo: StateFlow<Pair<String, String>> = _fileDateInfo.asStateFlow()
 
     fun playAudio(file: File) {
         val intent = Intent(app, AudioPlayer::class.java).apply {
@@ -67,20 +80,24 @@ class DetailViewModel(
         AudioStateManager.setProgress(0f)
     }
 
-    fun getDuration(file: File): Int = repository.getDurationSeconds(file)
-
     suspend fun renameFile(file: File, newName: String): Boolean = repository.renameRecord(file, newName)
 
-    fun getFileDateInfo(file: File): Pair<String, String> {
-        return try {
-            val attrs = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
-            val millis = attrs.creationTime().toMillis()
-            val dateAndTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault())
-            val date = dateAndTime.toLocalDate().format(DateTimeFormatter.ofPattern("dd LLLL yyyy"))
-            val time = dateAndTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
-            Pair(date, time)
-        } catch (e: Exception) {
-            Pair("Sconosciuta", "--:--")
+    fun loadFileInfo(file: File) {
+        viewModelScope.launch {
+            _durationSeconds.value = repository.getDurationSeconds(file)
+
+            _fileDateInfo.value = withContext(Dispatchers.IO) {
+                try {
+                    val attrs = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+                    val millis = attrs.creationTime().toMillis()
+                    val dateAndTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault())
+                    val date = dateAndTime.toLocalDate().format(DateTimeFormatter.ofPattern("dd LLLL yyyy"))
+                    val time = dateAndTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+                    Pair(date, time)
+                } catch (e: Exception) {
+                    Pair("Sconosciuta", "--:--")
+                }
+            }
         }
     }
 }

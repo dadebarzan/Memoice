@@ -39,12 +39,18 @@ fun DetailScreen(
     val file = File(folder, "$reference.m4a")
 
     // Dati recuperati dal ViewModel
-    val durationSeconds = remember { viewModel.getDuration(file) }
+    LaunchedEffect(file) {
+        viewModel.loadFileInfo(file)
+    }
+
+    // Osserviamo i dati asincroni
+    val durationSeconds by viewModel.durationSeconds.collectAsState()
+    val fileDateInfo by viewModel.fileDateInfo.collectAsState()
+    val (date, time) = fileDateInfo
+
     val minutes = durationSeconds / 60
     val seconds = durationSeconds % 60
     val formattedDuration = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-
-    val (date, time) = remember { viewModel.getFileDateInfo(file) }
 
     // Stati osservati dal ViewModel
     val isPlaying by viewModel.isPlaying.collectAsState()
