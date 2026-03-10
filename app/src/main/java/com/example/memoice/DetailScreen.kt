@@ -2,6 +2,7 @@ package com.example.memoice
 
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,7 +26,7 @@ import com.example.memoice.viewmodel.DetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DetailScreen(
     navController: NavController,
@@ -175,7 +176,7 @@ fun DetailScreen(
                         }
                     }
                     
-                    Slider(
+                    /**Slider(
                         value = sliderValue,
                         onValueChange = { newValue ->
                             isDragging = true
@@ -186,7 +187,49 @@ fun DetailScreen(
                             viewModel.seekTo(sliderValue)
                         },
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-                    )
+                    )*/
+
+                    Box(
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LinearWavyProgressIndicator(
+                            progress = { sliderValue },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = { newValue ->
+                                isDragging = true
+                                sliderValue = newValue
+                            },
+                            onValueChangeFinished = {
+                                isDragging = false
+                                viewModel.seekTo(sliderValue)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = androidx.compose.ui.graphics.Color.Transparent,
+                                inactiveTrackColor = androidx.compose.ui.graphics.Color.Transparent
+                            ),
+                            thumb = {
+                                Spacer(
+                                    modifier = Modifier
+                                        .size(width = 4.dp, height = 32.dp)
+                                        .offset(x = 1.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                )
+                            }
+                        )
+                    }
                     
                     Text(text = formattedDuration, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
