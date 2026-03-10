@@ -18,15 +18,7 @@ Memoice was developed for an Embedded Systems exam project at the University of 
 
 - Record audio using the device’s microphone  
 - Play back memos directly within the app  
-- UI designed with Jetpack Compose
-
----
-
-## ⚠️ Known Issues
-
-- Audio encoder may malfunction on Samsung devices  
-- Memo storage handling needs improvement  
-- Background playback is not yet supported
+- UI designed with Jetpack Compose (using Material 3 design language)
 
 ---
 
