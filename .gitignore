@@ -10,11 +10,7 @@ app/build/
 gradle-wrapper.jar
 
 # Android Studio / IntelliJ IDEA
-.idea/workspace.xml
-.idea/caches/
-.idea/deploymentTargetSelector.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
+.idea
 *.iml
 *.ipr
 *.iws
