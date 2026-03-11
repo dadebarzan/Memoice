@@ -100,6 +100,17 @@ class DetailViewModel(
             }
         }
     }
+
+    fun deleteFile(file: File, onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            val success = repository.deleteRecord(file)
+            if (success) {
+                withContext(Dispatchers.Main) {
+                    onDeleted()
+                }
+            }
+        }
+    }
 }
 
 class DetailViewModelFactory(

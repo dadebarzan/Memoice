@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
@@ -59,7 +59,6 @@ fun DetailScreen(
     var isDragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableStateOf(0f) }
 
-    // Sincronizza il pallino con l'audio reale SOLO SE l'utente non lo sta toccando
     LaunchedEffect(progress) {
         if (!isDragging) {
             sliderValue = progress
@@ -175,19 +174,6 @@ fun DetailScreen(
                             )
                         }
                     }
-                    
-                    /**Slider(
-                        value = sliderValue,
-                        onValueChange = { newValue ->
-                            isDragging = true
-                            sliderValue = newValue
-                        },
-                        onValueChangeFinished = {
-                            isDragging = false
-                            viewModel.seekTo(sliderValue)
-                        },
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-                    )*/
 
                     Box(
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
@@ -246,15 +232,17 @@ fun DetailScreen(
                         FilledTonalIconButton(
                             onClick = {
                                 viewModel.stopAudio()
-                                navController.navigate(Screen.Rec.passRef(reference))
+                                viewModel.deleteFile(file) {
+                                    navController.popBackStack()
+                                }
                             },
                             enabled = !isPlaying,
                             modifier = Modifier.size(64.dp)
                         ) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = "Registra di nuovo", modifier = Modifier.size(32.dp))
+                            Icon(Icons.Outlined.Delete, contentDescription = "Elimina", modifier = Modifier.size(32.dp))
                         }
                         Text(
-                            text = "Registra\ndi nuovo",
+                            text = "Elimina",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 4.dp)

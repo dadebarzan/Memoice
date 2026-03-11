@@ -32,7 +32,7 @@ import com.example.memoice.viewmodel.RecordViewModel
 @Composable
 fun RecScreen(
     navController: NavController,
-    viewModel: RecordViewModel, // Usiamo il ViewModel!
+    viewModel: RecordViewModel,
     reference: String?
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
@@ -43,7 +43,6 @@ fun RecScreen(
     val seconds = length % 60
     val formattedTime = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     
-    // Lo stato del bottone (se è stato premuto almeno una volta)
     var pressedRec by remember { mutableStateOf(false) }
 
     val recTextIndicator = when {
@@ -53,7 +52,7 @@ fun RecScreen(
     }
 
     // Creiamo il riferimento al file solo una volta all'avvio della schermata
-    val outputFile = remember { viewModel.getOutputFile(reference) }
+    val outputFile = remember { viewModel.getOutputFile() }
 
     // Gestione del ciclo di vita (es. se l'utente mette l'app in background)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -140,15 +139,8 @@ fun RecScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
                             onClick = {
-                                if (reference != "" && reference != null) {
-                                    // Se stavamo sovrascrivendo, torniamo al dettaglio
-                                    navController.navigate(route = Screen.Detail.passRef(outputFile.nameWithoutExtension)) {
-                                        popUpTo(Screen.Home.route)
-                                    }
-                                } else {
-                                    // Altrimenti torniamo alla Home
-                                    navController.popBackStack(Screen.Home.route, false)
-                                }
+                                viewModel.stopRecording()
+                                navController.popBackStack(Screen.Home.route, false)
                             },
                             enabled = (pressedRec && !isRecording),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -173,14 +165,14 @@ fun RecScreen(
 
                     Spacer(modifier = Modifier.width(48.dp))
 
-                    // Pulsante Elimina (Annulla)
+                    // Pulsante Annulla
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
                             onClick = {
                                 viewModel.cancelRecording()
                                 navController.popBackStack(Screen.Home.route, false)
                             },
-                            enabled = (pressedRec && !isRecording),
+                            enabled = (!isRecording),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = if (isSystemInDarkTheme()) dark_DeleteContainer else light_DeleteContainer,
                                 contentColor = if (isSystemInDarkTheme()) dark_onDeleteContainer else light_onDeleteContainer
@@ -189,12 +181,12 @@ fun RecScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Elimina",
+                                contentDescription = "Annulla",
                                 modifier = Modifier.size(32.dp)
                             )
                         }
                         Text(
-                            text = "Elimina",
+                            text = "Annulla",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                             fontWeight = MaterialTheme.typography.bodyLarge.fontWeight

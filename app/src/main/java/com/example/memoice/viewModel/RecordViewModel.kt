@@ -29,14 +29,9 @@ class RecordViewModel(
     private var timerJob: Job? = null
     private var currentFile: File? = null
 
-    // Generiamo il nome del file in modo pulito. Niente più calcoli strani!
-    fun getOutputFile(reference: String?): File {
-        val fileName = if (!reference.isNullOrEmpty()) {
-            "$reference.m4a" // Se stiamo registrando di nuovo sopra un vecchio memo, teniamo il nome
-        } else {
-            // Altrimenti generiamo un nome standard basato su data e ora
+    fun getOutputFile(): File {
+        val fileName =
             "Memo_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".m4a"
-        }
         return File(repository.folder, fileName)
     }
 
@@ -46,7 +41,6 @@ class RecordViewModel(
         _isRecording.value = true
         _recordDuration.value = 0
         
-        // Il timer vive qui dentro, al sicuro
         timerJob = viewModelScope.launch {
             while (_isRecording.value) {
                 delay(1000)
@@ -63,7 +57,6 @@ class RecordViewModel(
         }
     }
 
-    // Se l'utente preme la X o chiude l'app mentre registra
     fun cancelRecording() {
         stopRecording()
         currentFile?.let {
