@@ -38,7 +38,17 @@ fun DetailScreen(
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val file = File(folder, "$reference.m4a")
+
+    val file = remember(reference, folder) {
+        val directFile = File(folder, reference)
+        if (directFile.exists() && directFile.isFile) {
+            directFile
+        } else {
+            folder.listFiles()?.firstOrNull { it.nameWithoutExtension == reference }
+                // Fallback di sicurezza
+                ?: File(folder, "$reference.m4a")
+        }
+    }
 
     // Dati recuperati dal ViewModel
     LaunchedEffect(file) {

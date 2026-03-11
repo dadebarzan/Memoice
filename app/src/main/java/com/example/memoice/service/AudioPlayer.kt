@@ -50,7 +50,10 @@ class AudioPlayer : Service(), MediaPlayer.OnPreparedListener, MediaPlayer.OnCom
     }
 
     private fun play(filePath: String, title: String) {
-        if (AudioStateManager.isPlaying.value) stop()
+        if (player != null) {
+            // Se c'è già un player attivo, fermiamolo prima di crearne uno nuovo
+            stop()
+        }
 
         AudioStateManager.setCurrentFile(title)
         AudioStateManager.setPlaying(true)
