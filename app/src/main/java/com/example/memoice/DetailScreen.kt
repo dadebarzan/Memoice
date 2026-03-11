@@ -1,277 +1,188 @@
 package com.example.memoice
 
-import android.Manifest
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
-import android.content.res.Configuration
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.memoice.navigation.LockScreenOrientation
 import com.example.memoice.navigation.Screen
-import com.example.memoice.service.AudioPlayerViewModel
-import com.example.memoice.ui.theme.MemoiceTheme
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import com.example.memoice.viewmodel.DetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.NoSuchFileException
-import java.nio.file.attribute.BasicFileAttributes
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DetailScreen(
     navController: NavController,
-    serviceViewModel: AudioPlayerViewModel,
+    viewModel: DetailViewModel,
     folder: File,
     reference: String
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val permission = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { Manifest.permission.POST_NOTIFICATIONS } else { Manifest.permission.RECORD_AUDIO }
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { }
-    val permissionCheckResult = ContextCompat.checkSelfPermission(context, permission)
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val service = serviceViewModel.getMyService()
-
-    val file = File(folder, "$reference.mp3")
-    val length = reference.drop(reference.length-2).toInt()
-    val lengthS = if(length < 10) "0$length" else "$length"
-    var stringTime = "1970-01-01T00:00:00Z"
-    try {
-        stringTime = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java).creationTime().toString()
-    } catch(e: NoSuchFileException) {
-        navController.navigate(route = Screen.Home.route) {
-            popUpTo(Screen.Home.route) {
-                inclusive = true
-            }
+    val file = remember(reference, folder) {
+        val directFile = File(folder, reference)
+        if (directFile.exists() && directFile.isFile) {
+            directFile
+        } else {
+            folder.listFiles()?.firstOrNull { it.nameWithoutExtension == reference }
+                // Fallback di sicurezza
+                ?: File(folder, "$reference.m4a")
         }
     }
-    if(stringTime == "1970-01-01T00:00:00Z") {
-        navController.navigate(route = Screen.Home.route) {
-            popUpTo(Screen.Home.route) {
-                inclusive = true
-            }
+
+    // Dati recuperati dal ViewModel
+    LaunchedEffect(file) {
+        viewModel.loadFileInfo(file)
+    }
+
+    // Osserviamo i dati asincroni
+    val durationSeconds by viewModel.durationSeconds.collectAsState()
+    val fileDateInfo by viewModel.fileDateInfo.collectAsState()
+    val (date, time) = fileDateInfo
+
+    val minutes = durationSeconds / 60
+    val seconds = durationSeconds % 60
+    val formattedDuration = "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+
+    // Stati osservati dal ViewModel
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val progress by viewModel.progress.collectAsState()
+    var isDragging by remember { mutableStateOf(false) }
+    var sliderValue by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(progress) {
+        if (!isDragging) {
+            sliderValue = progress
         }
     }
-    val dateAndTime = LocalDateTime.parse(stringTime, DateTimeFormatter.ofPattern("uuuu-MM-dd'T'kk:mm:ssX"))
-    val date = dateAndTime.toLocalDate().format(DateTimeFormatter.ofPattern("dd LLLL uuuu")).toString()
-    val time = dateAndTime.toLocalTime().format(DateTimeFormatter.ofPattern("kk:mm")).toString()
 
-    var playing by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0f) }
     var rename by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf(file.nameWithoutExtension.dropLast(2)) }
+    var text by remember { mutableStateOf(reference) }
 
-    if(progress == 1f) {
-        scope.cancel()
-        progress = 0f
-        playing = false
+    if (progress == 1f) {
+        viewModel.resetProgress()
+    }
+
+    BackHandler {
+        viewModel.stopAudio()
+        navController.popBackStack()
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
         topBar = {
             MediumTopAppBar(
                 colors = TopAppBarDefaults.mediumTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
                 ),
-                title = {
-                    Text(text = "Dettagli", fontSize = 34.sp)
-                },
+                title = { Text(text = "Dettagli", fontSize = 34.sp) },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            navController.navigate(route = Screen.Home.route) {
-                                popUpTo(Screen.Home.route) {
-                                    inclusive = true
-                                }
-                            }
+                            viewModel.stopAudio()
+                            navController.popBackStack()
                         }
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
-                            contentDescription = "Home"
-                        )
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Indietro")
                     }
                 }
             )
         }
-    ) {
+    ) { paddingValues ->
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(it),
+            modifier = Modifier.fillMaxSize().padding(paddingValues),
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Spacer(
-                    modifier = Modifier.height(24.dp)
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if(rename) {
+                    if (rename) {
                         OutlinedTextField(
                             value = text,
                             onValueChange = { newText ->
-                                if(!newText.contains(' ') && !newText.contains('/') && newText.length < 12) {
+                                if (!newText.contains(' ') && !newText.contains('/') && newText.length < 20) {
                                     text = newText
                                 }
                             },
-                            label = { Text( text = "Titolo" ) },
+                            label = { Text("Titolo") },
                             maxLines = 1,
-                            colors = TextFieldDefaults.colors(
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.padding(start = 12.dp),
+                            modifier = Modifier.padding(start = 12.dp).weight(1f)
                         )
                     } else {
                         Text(
                             text = text,
                             color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 40.sp,
-                            modifier = Modifier.padding(12.dp)
+                            fontSize = 32.sp,
+                            modifier = Modifier.padding(12.dp).weight(1f)
                         )
                     }
-                    Spacer(
-                        modifier = Modifier.width(12.dp)
-                    )
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
                     FilledTonalIconButton(
                         onClick = {
-                            if(rename && inputCheck(text, folder)) {
-                                val newName = text+lengthS+"."+file.extension
-                                try {
-                                    file.renameTo(File(folder, newName))
-                                } catch(e: NoSuchFileException) {
-                                    navController.navigate(route = Screen.Detail.passRef(newName.dropLast(4))) {
-                                        popUpTo(Screen.Home.route)
+                            if (rename && text.isNotBlank() && text != reference) {
+                                scope.launch {
+                                    val success = viewModel.renameFile(file, text)
+                                    if (success) {
+                                        // Aggiorniamo la UI ricaricando la pagina con il nuovo riferimento
+                                        navController.navigate(Screen.Detail.passRef(text)) {
+                                            popUpTo(Screen.Home.route)
+                                        }
+                                    } else {
+                                        text = reference
+                                        snackbarHostState.showSnackbar("Nome non valido o già esistente")
                                     }
                                 }
                             }
                             rename = !rename
                         },
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
-                        enabled = !playing,
-                        modifier = Modifier.offset(y = 5.dp)
+                        enabled = !isPlaying,
+                        modifier = Modifier.padding(end = 12.dp)
                     ) {
-                        if(rename) {
-                            Icon(
-                                imageVector = Icons.Outlined.Done,
-                                contentDescription = "Salva"
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = "Modifica"
-                            )
-                        }
+                        Icon(
+                            imageVector = if (rename) Icons.Outlined.Done else Icons.Outlined.Edit,
+                            contentDescription = if (rename) "Salva" else "Modifica"
+                        )
                     }
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
                     IconButton(
                         onClick = {
-                            if(playing) {
-                                service?.stop()
-                                scope.cancel()
-                                progress = 0f
-                            } else {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    if (permissionCheckResult != PackageManager.PERMISSION_GRANTED) {
-                                        launcher.launch(permission)
-                                    }
-                                }
-                                service?.play(file.toUri(), file.name)
-                                scope.launch {
-                                    while(progress < 1f) {
-                                        if (service?.isPlaying() == true) {
-                                            delay(100)
-                                            playing = true
-                                            progress = service.getCurrentPosition()
-                                        }
-                                    }
-                                }
-                            }
-                            playing = !playing
+                            if (isPlaying) viewModel.pauseAudio() else viewModel.playAudio(file)
                         }
                     ) {
-                        if(playing) {
+                        if (isPlaying) {
                             Icon(
                                 painter = painterResource(id = R.drawable.pause),
-                                contentDescription = "Metti in pausa"
+                                contentDescription = "Pausa"
                             )
                         } else {
                             Icon(
@@ -280,58 +191,78 @@ fun DetailScreen(
                             )
                         }
                     }
-                    LinearProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
-                        progress = progress
-                    /* TODO: seekTo e scorrimento */
-                    )
-                    Spacer(modifier = Modifier.width(20.dp))
-                    Text(
-                        text = "00:$lengthS",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp
-                    )
+
+                    Box(
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LinearWavyProgressIndicator(
+                            progress = { sliderValue },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = { newValue ->
+                                isDragging = true
+                                sliderValue = newValue
+                            },
+                            onValueChangeFinished = {
+                                isDragging = false
+                                viewModel.seekTo(sliderValue)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = androidx.compose.ui.graphics.Color.Transparent,
+                                inactiveTrackColor = androidx.compose.ui.graphics.Color.Transparent
+                            ),
+                            thumb = {
+                                Spacer(
+                                    modifier = Modifier
+                                        .size(width = 4.dp, height = 32.dp)
+                                        .offset(x = 1.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                )
+                            }
+                        )
+                    }
+                    
+                    Text(text = formattedDuration, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+
                 Text(
                     text = "Registrato il $date alle $time",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(top = 12.dp, start = 12.dp)
+                    modifier = Modifier.padding(start = 12.dp, top = 12.dp)
                 )
-                Row(
-                    modifier = Modifier
-                        .padding(top = 36.dp)
-                        .align(Alignment.CenterHorizontally)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+
+                Row(modifier = Modifier.padding(top = 36.dp).align(Alignment.CenterHorizontally)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilledTonalIconButton(
                             onClick = {
-                                navController.navigate(Screen.Rec.passRef(file.nameWithoutExtension))
+                                viewModel.stopAudio()
+                                viewModel.deleteFile(file) {
+                                    navController.popBackStack()
+                                }
                             },
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            enabled = !playing,
+                            enabled = !isPlaying,
                             modifier = Modifier.size(64.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Refresh,
-                                contentDescription = "Registra di nuovo",
-                                modifier = Modifier.size(32.dp)
-                            )
+                            Icon(Icons.Outlined.Delete, contentDescription = "Elimina", modifier = Modifier.size(32.dp))
                         }
                         Text(
-                            text = "Registra\ndi nuovo",
+                            text = "Elimina",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
-                            fontWeight = MaterialTheme.typography.bodyLarge.fontWeight,
-                            modifier = Modifier.padding(top = 4.dp),
                             textAlign = TextAlign.Center,
-                            lineHeight = 16.sp
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -339,49 +270,3 @@ fun DetailScreen(
         }
     }
 }
-
-private fun inputCheck(title: String, folder: File): Boolean {
-    if(title.contains(' ') || title.contains('/')) {
-        return false
-    } else if(title.length > 11) {
-        return false
-    } else {
-        val files = folder.listFiles()
-        for(file in files!!) {
-            if(title == file.nameWithoutExtension) {
-                return false
-            }
-        }
-        return true
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-fun DetailScreenPreview() {
-    MemoiceTheme {
-        DetailScreen(
-            navController = rememberNavController(),
-            serviceViewModel = AudioPlayerViewModel(),
-            folder = File("recs"),
-            reference = "Esempio12.mp3"
-        )
-    }
-}
-
-@Composable
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
-)
-fun DetailScreenDarkPreview() {
-    MemoiceTheme {
-        DetailScreen(
-            navController = rememberNavController(),
-            serviceViewModel = AudioPlayerViewModel(),
-            folder = File("recs"),
-            reference = "Esempio12.mp3"
-        )
-    }
-}
-

@@ -9,9 +9,5 @@ sealed class Screen(val route: String) {
             return this.route.replace(oldValue = "{$KEY}", newValue = reference)
         }
     }
-    object Rec: Screen(route = "rec_screen?reference={ARGUMENT_KEY}") {
-        fun passRef(reference: String): String {
-            return this.route.replace(oldValue = "{$KEY}", newValue = reference)
-        }
-    }
+    object Rec: Screen(route = "rec_screen")
 }
