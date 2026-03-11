@@ -37,6 +37,7 @@ fun DetailScreen(
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val file = File(folder, "$reference.m4a")
 
     // Dati recuperati dal ViewModel
@@ -78,6 +79,7 @@ fun DetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
         topBar = {
             MediumTopAppBar(
@@ -137,10 +139,15 @@ fun DetailScreen(
                         onClick = {
                             if (rename && text.isNotBlank() && text != reference) {
                                 scope.launch {
-                                    viewModel.renameFile(file, text)
-                                    // Aggiorniamo la UI ricaricando la pagina con il nuovo riferimento
-                                    navController.navigate(Screen.Detail.passRef(text)) {
-                                        popUpTo(Screen.Home.route)
+                                    val success = viewModel.renameFile(file, text)
+                                    if (success) {
+                                        // Aggiorniamo la UI ricaricando la pagina con il nuovo riferimento
+                                        navController.navigate(Screen.Detail.passRef(text)) {
+                                            popUpTo(Screen.Home.route)
+                                        }
+                                    } else {
+                                        text = reference
+                                        snackbarHostState.showSnackbar("Nome non valido o già esistente")
                                     }
                                 }
                             }

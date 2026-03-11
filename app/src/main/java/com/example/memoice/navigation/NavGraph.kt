@@ -66,11 +66,7 @@ fun SetupNavGraph(
             )
         }
         composable(
-            route = Screen.Rec.route,
-            arguments = listOf(navArgument(KEY) {
-                type = NavType.StringType
-                defaultValue = ""
-            })
+            route = Screen.Rec.route
         ) {
             val repository = MemoRepository(folder)
             val recordViewModel: RecordViewModel = viewModel(
@@ -79,8 +75,7 @@ fun SetupNavGraph(
 
             RecScreen(
                 navController = navController,
-                viewModel = recordViewModel,
-                reference = it.arguments?.getString(KEY)
+                viewModel = recordViewModel
             )
         }
     }

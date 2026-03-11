@@ -32,8 +32,7 @@ import com.example.memoice.viewmodel.RecordViewModel
 @Composable
 fun RecScreen(
     navController: NavController,
-    viewModel: RecordViewModel,
-    reference: String?
+    viewModel: RecordViewModel
 ) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
