@@ -72,6 +72,8 @@ import com.example.memoice.viewmodel.DetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 
+private val INVALID_TITLE_CHARS = setOf('/', '?', '#', '%', '\\', '*')
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DetailScreen(
@@ -151,6 +153,7 @@ fun DetailScreen(
             }
         } else if (cleanText == reference) {
             // CASO 2: Nome invariato
+            text = cleanText
             rename = false
             focusManager.clearFocus()
         } else {
@@ -214,9 +217,7 @@ fun DetailScreen(
                         OutlinedTextField(
                             value = text,
                             onValueChange = { newText ->
-                                val invalidChars = listOf('/', '?', '#', '%', '\\', '*')
-
-                                if (newText.none { it in invalidChars } && newText.length <= 32) {
+                                if (newText.none { it in INVALID_TITLE_CHARS } && newText.length <= 32) {
                                     text = newText
                                 }
                             },

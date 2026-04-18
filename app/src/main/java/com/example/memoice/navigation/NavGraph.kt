@@ -59,7 +59,7 @@ fun SetupNavGraph(
                 factory = DetailViewModelFactory(application, repository)
             )
 
-            val encodedReference = backStackEntry.arguments?.getString("reference") ?: ""
+            val encodedReference = backStackEntry.arguments?.getString(KEY) ?: ""
             val decodedReference = Uri.decode(encodedReference)
 
             DetailScreen(
