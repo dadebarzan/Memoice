@@ -143,21 +143,34 @@ fun DetailScreen(
     val focusManager = LocalFocusManager.current
     val performSave = {
         val cleanText = text.trim()
-        if (cleanText.isNotBlank() && cleanText != reference) {
+
+        if (cleanText.isBlank()) {
+            // CASO 1: Testo vuoto
+            scope.launch {
+                snackbarHostState.showSnackbar("Il nome non può essere vuoto")
+            }
+        } else if (cleanText == reference) {
+            // CASO 2: Nome invariato
+            rename = false
+            focusManager.clearFocus()
+        } else {
+            // CASO 3: Nuovo nome valido, tentiamo il salvataggio
             scope.launch {
                 val success = viewModel.renameFile(file, cleanText)
                 if (success) {
+                    // Salvataggio riuscito
+                    rename = false
+                    focusManager.clearFocus()
+
                     navController.navigate(Screen.Detail.passRef(cleanText)) {
                         popUpTo(Screen.Home.route)
                     }
                 } else {
-                    text = reference
+                    // Salvataggio fallito
                     snackbarHostState.showSnackbar("Nome non valido o già esistente")
                 }
             }
         }
-        rename = false
-        focusManager.clearFocus()
     }
 
     Scaffold(
@@ -201,7 +214,9 @@ fun DetailScreen(
                         OutlinedTextField(
                             value = text,
                             onValueChange = { newText ->
-                                if (!newText.contains('/') && newText.length < 32) {
+                                val invalidChars = listOf('/', '?', '#', '%', '\\', '*')
+
+                                if (newText.none { it in invalidChars } && newText.length <= 32) {
                                     text = newText
                                 }
                             },
@@ -297,29 +312,6 @@ fun DetailScreen(
                 }
 
                 Spacer(modifier = Modifier.weight(0.8f))
-
-                /*Row(modifier = Modifier.padding(top = 36.dp).align(Alignment.CenterHorizontally)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(
-                            onClick = {
-                                viewModel.stopAudio()
-                                viewModel.deleteFile(file) {
-                                    navController.popBackStack()
-                                }
-                            },
-                            enabled = !isPlaying,
-                            modifier = Modifier.size(64.dp)
-                        ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Elimina", modifier = Modifier.size(32.dp))
-                        }
-                        Text(
-                            text = "Elimina",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }*/
 
                 ButtonGroup(
                     modifier = Modifier

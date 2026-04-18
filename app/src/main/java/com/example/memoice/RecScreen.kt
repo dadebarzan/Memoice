@@ -216,7 +216,7 @@ fun RecScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Clear,
-                                contentDescription = "Elimina",
+                                contentDescription = "Annulla registrazione",
                                 modifier = Modifier.size(48.dp)
                             )
                         }
@@ -226,10 +226,10 @@ fun RecScreen(
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Elimina"
+                                    contentDescription = "Annulla registrazione"
                                 )
                             },
-                            text = { Text("Elimina") },
+                            text = { Text("Annulla registrazione") },
                             onClick = {
                                 viewModel.cancelRecording()
                                 navController.popBackStack(Screen.Home.route, false)

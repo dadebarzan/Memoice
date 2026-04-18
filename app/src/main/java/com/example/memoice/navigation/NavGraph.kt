@@ -3,6 +3,7 @@ package com.example.memoice.navigation
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
@@ -52,17 +53,20 @@ fun SetupNavGraph(
         composable(
             route = Screen.Detail.route,
             arguments = listOf(navArgument(KEY) { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
             val repository = MemoRepository(folder)
             val detailViewModel: DetailViewModel = viewModel(
                 factory = DetailViewModelFactory(application, repository)
             )
 
+            val encodedReference = backStackEntry.arguments?.getString("reference") ?: ""
+            val decodedReference = Uri.decode(encodedReference)
+
             DetailScreen(
                 navController = navController,
                 viewModel = detailViewModel,
                 folder = folder,
-                reference = it.arguments?.getString(KEY)!!
+                reference = decodedReference
             )
         }
         composable(
