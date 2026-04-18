@@ -22,8 +22,20 @@ Memoice was developed for an Embedded Systems exam project at the University of 
 
 ---
 
+## Preview
+<p align="center">
+  <img src="screenshots/Home.png" width="22%" />
+  <img src="screenshots/Rec_ongoing.png" width="22%" />
+  <img src="screenshots/Rec_finished.png" width="22%" />
+  <img src="screenshots/Detail.png" width="22%" />
+</p>
+
+
+---
+
 ## 🛠️ Getting Started
 
 1. Clone the repository:  
    ```bash
    git clone git@github.com:dadebarzan/Memoice.git
+
