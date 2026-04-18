@@ -1,5 +1,11 @@
 package com.example.memoice.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemColors
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 val md_theme_light_primary = Color(0xFF006B5D)
@@ -73,3 +79,8 @@ val dark_DeleteContainer = Color(0xFF92001B)
 val dark_onDeleteContainer = Color(0xFFFFDAD8)
 
 val seed = Color(0xFF266358)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+val listItemColors: ListItemColors
+    @Composable get() =
+        ListItemDefaults.segmentedColors(containerColor = if (!isSystemInDarkTheme()) colorScheme.surfaceBright else colorScheme.surfaceContainerHigh)

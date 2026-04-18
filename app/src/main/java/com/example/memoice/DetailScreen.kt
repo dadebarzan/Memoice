@@ -3,28 +3,76 @@ package com.example.memoice
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.memoice.navigation.LockScreenOrientation
 import com.example.memoice.navigation.Screen
+import com.example.memoice.ui.theme.dark_DeleteContainer
+import com.example.memoice.ui.theme.dark_onDeleteContainer
+import com.example.memoice.ui.theme.light_DeleteContainer
+import com.example.memoice.ui.theme.light_onDeleteContainer
 import com.example.memoice.viewmodel.DetailViewModel
 import kotlinx.coroutines.launch
 import java.io.File
+
+private val INVALID_TITLE_CHARS = setOf('/', '?', '#', '%', '\\', '*')
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -70,6 +118,12 @@ fun DetailScreen(
     var isDragging by remember { mutableStateOf(false) }
     var sliderValue by remember { mutableStateOf(0f) }
 
+    // Deriviamo il tempo riprodotto dalla posizione dello slider
+    val currentSecondsTotal = (sliderValue * durationSeconds).toInt()
+    val currMinutes = currentSecondsTotal / 60
+    val currSeconds = currentSecondsTotal % 60
+    val formattedCurrentTime = "${currMinutes.toString().padStart(2, '0')}:${currSeconds.toString().padStart(2, '0')}"
+
     LaunchedEffect(progress) {
         if (!isDragging) {
             sliderValue = progress
@@ -88,13 +142,47 @@ fun DetailScreen(
         navController.popBackStack()
     }
 
+    val focusManager = LocalFocusManager.current
+    val performSave = {
+        val cleanText = text.trim()
+
+        if (cleanText.isBlank()) {
+            // CASO 1: Testo vuoto
+            scope.launch {
+                snackbarHostState.showSnackbar("Il nome non può essere vuoto")
+            }
+        } else if (cleanText == reference) {
+            // CASO 2: Nome invariato
+            text = cleanText
+            rename = false
+            focusManager.clearFocus()
+        } else {
+            // CASO 3: Nuovo nome valido, tentiamo il salvataggio
+            scope.launch {
+                val success = viewModel.renameFile(file, cleanText)
+                if (success) {
+                    // Salvataggio riuscito
+                    rename = false
+                    focusManager.clearFocus()
+
+                    navController.navigate(Screen.Detail.passRef(cleanText)) {
+                        popUpTo(Screen.Home.route)
+                    }
+                } else {
+                    // Salvataggio fallito
+                    snackbarHostState.showSnackbar("Nome non valido o già esistente")
+                }
+            }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             MediumTopAppBar(
                 colors = TopAppBarDefaults.mediumTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
                 title = { Text(text = "Dettagli", fontSize = 34.sp) },
                 navigationIcon = {
@@ -111,12 +199,15 @@ fun DetailScreen(
         }
     ) { paddingValues ->
         Surface(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
+            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(all = 16.dp),
             color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 28.dp, bottomEnd = 28.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.height(24.dp))
+            Column(modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+            ) {
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -126,72 +217,40 @@ fun DetailScreen(
                         OutlinedTextField(
                             value = text,
                             onValueChange = { newText ->
-                                if (!newText.contains(' ') && !newText.contains('/') && newText.length < 20) {
+                                if (newText.none { it in INVALID_TITLE_CHARS } && newText.length <= 32) {
                                     text = newText
                                 }
                             },
                             label = { Text("Titolo") },
                             maxLines = 1,
-                            modifier = Modifier.padding(start = 12.dp).weight(1f)
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = { performSave() }
+                            ),
+                            modifier = Modifier.padding(12.dp).weight(1f)
                         )
                     } else {
                         Text(
                             text = text,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 32.sp,
+                            lineHeight = 36.sp,
                             modifier = Modifier.padding(12.dp).weight(1f)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(12.dp))
-                    
-                    FilledTonalIconButton(
-                        onClick = {
-                            if (rename && text.isNotBlank() && text != reference) {
-                                scope.launch {
-                                    val success = viewModel.renameFile(file, text)
-                                    if (success) {
-                                        // Aggiorniamo la UI ricaricando la pagina con il nuovo riferimento
-                                        navController.navigate(Screen.Detail.passRef(text)) {
-                                            popUpTo(Screen.Home.route)
-                                        }
-                                    } else {
-                                        text = reference
-                                        snackbarHostState.showSnackbar("Nome non valido o già esistente")
-                                    }
-                                }
-                            }
-                            rename = !rename
-                        },
-                        enabled = !isPlaying,
-                        modifier = Modifier.padding(end = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (rename) Icons.Outlined.Done else Icons.Outlined.Edit,
-                            contentDescription = if (rename) "Salva" else "Modifica"
                         )
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-                    IconButton(
-                        onClick = {
-                            if (isPlaying) viewModel.pauseAudio() else viewModel.playAudio(file)
-                        }
-                    ) {
-                        if (isPlaying) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.pause),
-                                contentDescription = "Pausa"
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Riproduci"
-                            )
-                        }
-                    }
+                Text(
+                    text = "Registrato il $date alle $time",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 18.sp,
+                    modifier = Modifier.padding(start = 12.dp, top = 12.dp)
+                )
 
+                Spacer(modifier = Modifier.weight(2f))
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
                     Box(
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                         contentAlignment = Alignment.Center
@@ -233,38 +292,192 @@ fun DetailScreen(
                             }
                         )
                     }
-                    
-                    Text(text = formattedDuration, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                Text(
-                    text = "Registrato il $date alle $time",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 18.sp,
-                    modifier = Modifier.padding(start = 12.dp, top = 12.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formattedCurrentTime,
+                        fontSize = 24.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                Row(modifier = Modifier.padding(top = 36.dp).align(Alignment.CenterHorizontally)) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        FilledTonalIconButton(
-                            onClick = {
-                                viewModel.stopAudio()
-                                viewModel.deleteFile(file) {
-                                    navController.popBackStack()
-                                }
-                            },
-                            enabled = !isPlaying,
-                            modifier = Modifier.size(64.dp)
-                        ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = "Elimina", modifier = Modifier.size(32.dp))
-                        }
-                        Text(
-                            text = "Elimina",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 4.dp)
+                    Text(
+                        text = " | " + formattedDuration,
+                        fontSize = 24.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(0.8f))
+
+                ButtonGroup(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp),
+                    overflowIndicator = { menuState ->
+                        ButtonGroupDefaults.OverflowIndicator(
+                            menuState,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(),
+                            modifier = Modifier.size(IconButtonDefaults.largeIconSize)
                         )
                     }
+                ) {
+                    customItem(
+                        {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (isPlaying) viewModel.pauseAudio() else viewModel.playAudio(file)
+                                },
+                                modifier = Modifier
+                                    .height(96.dp)
+                                    .weight(2f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                shape =
+                                    if (isPlaying)
+                                        IconButtonDefaults.largePressedShape
+                                    else
+                                        IconButtonDefaults.largeRoundShape
+                            ) {
+                                if (isPlaying) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.pause),
+                                        contentDescription = "Pausa",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = "Riproduci",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                            }
+                        },
+                        menuContent = {
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    if (isPlaying) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.pause),
+                                            contentDescription = "Pausa"
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Rounded.PlayArrow,
+                                            contentDescription = "Riproduci"
+                                        )
+                                    }
+                                },
+                                text = {
+                                    if (isPlaying) {
+                                        Text("Pausa")
+                                    } else {
+                                        Text("Riproduci")
+                                    }},
+                                onClick = {
+                                    if (isPlaying) viewModel.pauseAudio() else viewModel.playAudio(file)
+                                }
+                            )
+                        }
+                    )
+
+                    customItem(
+                        {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (rename) {
+                                        performSave()
+                                    } else {
+                                        rename = true
+                                    }
+                                },
+                                enabled = (!isPlaying),
+                                modifier = Modifier
+                                    .height(96.dp)
+                                    .weight(0.8f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                shape = if (rename) IconButtonDefaults.largeSelectedRoundShape else IconButtonDefaults.largeRoundShape
+                            ) {
+                                Icon(
+                                    imageVector = if (rename) Icons.Outlined.Done else Icons.Outlined.Edit,
+                                    contentDescription = if (rename) "Salva" else "Modifica",
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                        },
+                        menuContent = {
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (rename) Icons.Outlined.Done else Icons.Outlined.Edit,
+                                        contentDescription = if (rename) "Salva" else "Modifica"
+                                    )
+                                },
+                                text = { if (rename) Text("Salva") else Text("Modifica") },
+                                onClick = {
+                                    if (rename) {
+                                        performSave()
+                                    } else {
+                                        rename = true
+                                    }
+                                }
+                            )
+                        }
+                    )
+
+                    customItem(
+                        {
+                            FilledTonalButton(
+                                onClick = {
+                                    viewModel.stopAudio()
+                                    viewModel.deleteFile(file) {
+                                        navController.popBackStack()
+                                    }
+                                },
+                                enabled = (!isPlaying),
+                                modifier = Modifier
+                                    .height(96.dp)
+                                    .weight(1f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (isSystemInDarkTheme()) dark_DeleteContainer else light_DeleteContainer,
+                                    contentColor = if (isSystemInDarkTheme()) dark_onDeleteContainer else light_onDeleteContainer
+                                ),
+                                shape = IconButtonDefaults.largeSquareShape
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Elimina",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        },
+                        menuContent = {
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Elimina"
+                                    )
+                                },
+                                text = { Text("Elimina") },
+                                onClick = {
+                                    viewModel.stopAudio()
+                                    viewModel.deleteFile(file) {
+                                        navController.popBackStack()
+                                    }
+                                }
+                            )
+                        }
+                    )
                 }
             }
         }
