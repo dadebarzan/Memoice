@@ -18,7 +18,7 @@ Memoice was developed for an Embedded Systems exam project at the University of 
 
 - Record audio using the device’s microphone  
 - Play back memos directly within the app  
-- UI designed with Jetpack Compose (using Material 3 and Material 3 Expressive design language)
+- UI designed with Jetpack Compose (using Material 3 / Material 3 Expressive design language)
 
 ---
 
