@@ -31,7 +31,7 @@ class RecordViewModel(
 
     fun getOutputFile(): File {
         val fileName =
-            "Memo_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".m4a"
+            "Memo_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".m4a"
         return File(repository.folder, fileName)
     }
 
